@@ -113,14 +113,19 @@ EOF
 chmod 600 /opt/agentx/.agent-ssh/config
 chown 1001:1001 /opt/agentx/.agent-ssh/config
 
-# Claude CLI
+# Claude CLI — login with your personal Anthropic account (no separate agent account needed)
 apt install -y nodejs npm
 npm install -g @anthropic-ai/claude-code
 claude login
 
-# Ensure .claude subdirs exist — the container mounts /root/.claude read-only
-# and Claude will fail if these are missing
-mkdir -p /root/.claude/todos /root/.claude/debug /root/.claude/statsig
+# Agent Claude config — the container uses its own writable .claude directory.
+# Copy OAuth credentials from the login above so the container can authenticate.
+# No ANTHROPIC_API_KEY needed; the container uses OAuth mode.
+mkdir -p /opt/agentx/.agent-claude/todos /opt/agentx/.agent-claude/debug \
+         /opt/agentx/.agent-claude/statsig /opt/agentx/.agent-claude/sessions
+cp /root/.claude/.credentials.json /opt/agentx/.agent-claude/
+cp /root/.claude/settings.json /opt/agentx/.agent-claude/ 2>/dev/null || true
+chown -R 1001:1001 /opt/agentx/.agent-claude
 
 # Smoke test (always run from main to avoid stale branch errors)
 git checkout main
