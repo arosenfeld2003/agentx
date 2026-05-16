@@ -1,24 +1,14 @@
 # VPS Setup Guide
 
-## Local Machine vs. Docker for Setup
-
-Use your local Mac directly. Docker adds no meaningful security here — Docker isolation protects the host from the container, not the reverse. If the Mac is compromised, an attacker sees everything the container does anyway. Forwarding an SSH agent into a container reintroduces the same attack surface.
-
----
-
 ## What Actually Matters
 
 **SSH key hygiene**
-- Use ed25519 key with a passphrase (`~/.ssh/id_ed25519`)
-- Never copy the private key to the VPS
+- Use ed25519 key with a passphrase (`~/.ssh/id_ed25519`) for your own VPS access
+- The GitHub deploy key (`~/.ssh/hostinger`) must be **passphraseless** on the VPS — the agent runs unattended
 
 **Credentials in shell history**
 - Don't: `export ANTHROPIC_API_KEY=sk-...` in an interactive shell (goes into `~/.bash_history`)
-- Do: write directly to `/opt/agentx/secrets.env` via `nano`/`vim`, or:
-  ```bash
-  cat > /opt/agentx/secrets.env   # paste values, then Ctrl+D
-  chmod 600 /opt/agentx/secrets.env
-  ```
+- Do: write directly to `/opt/agentx/secrets.env` via `nano`/`vim`
 
 **VPS hardening (one-time)**
 - Disable password SSH auth: `PasswordAuthentication no` in `/etc/ssh/sshd_config`
@@ -30,17 +20,15 @@ Use your local Mac directly. Docker adds no meaningful security here — Docker 
 
 ### Step 1 — From your Mac: copy the GitHub deploy key to the VPS
 
-The agent uses `~/.ssh/hostinger` to authenticate to GitHub as `runggp`. Copy it before the main session:
-
 ```bash
 scp ~/.ssh/hostinger root@<vps-ip>:~/.ssh/hostinger
 scp ~/.ssh/hostinger.pub root@<vps-ip>:~/.ssh/hostinger.pub
 ssh root@<vps-ip> "chmod 600 ~/.ssh/hostinger"
 ```
 
-> **One-time manual step:** Ensure `~/.ssh/hostinger.pub` is added to github.com/runggp → Settings → SSH Keys with **write access**.
+> **One-time manual step:** Add `~/.ssh/hostinger.pub` to github.com/runggp → Settings → SSH Keys with **write access**.
 
-> **Passphrase:** The `~/.ssh/hostinger` key on your Mac has a passphrase (use `ssh-add ~/.ssh/hostinger` to cache it locally). The copy on the VPS must be **passphraseless** — the agent runs unattended and cannot prompt for input. If the copied key still has a passphrase, strip it on the VPS:
+> **Passphrase:** Strip the passphrase from the VPS copy — the agent cannot prompt for input:
 > ```bash
 > ssh-keygen -p -f ~/.ssh/hostinger  # enter current passphrase, leave new passphrase blank
 > ```
@@ -55,13 +43,13 @@ ssh root@<vps-ip>
 # System
 apt update && apt upgrade -y
 # Use docker.io (Ubuntu pkg) — do NOT install containerd.io, it conflicts
-apt install -y docker.io docker-compose-plugin git curl
+apt install -y docker.io docker-compose-plugin git curl nodejs npm
 
 # Git identity for the agent account
-git config --global user.name "runggp"
-git config --global user.email "agentx@runggp.com"
+git config --global user.name "<git-username>"
+git config --global user.email "<git-email>"
 
-# Route GitHub through the deploy key
+# Route GitHub through the deploy key (for root on VPS host)
 cat >> ~/.ssh/config <<'EOF'
 Host github.com
   IdentityFile ~/.ssh/hostinger
@@ -69,22 +57,24 @@ Host github.com
 EOF
 chmod 600 ~/.ssh/config
 
-# Repos — clone before cd so the target directory is empty
+# Clone repos — clone before creating any subdirs so target dirs are empty
 git clone git@github.com:runggp/agentx.git /opt/agentx
 git clone git@github.com:runggp/scaffold.git /opt/agentx/scaffold
 
-# Give ralph (uid 1001) ownership of the workspace so it can write to .git
+# Give ralph (uid 1001 in container) ownership of the workspace so it can
+# write to .git when creating branches
 chown -R 1001:1001 /opt/agentx
-# Allow root to still run git on this repo despite ownership mismatch
+# Allow root to still run git on this repo despite the ownership mismatch
 git config --global --add safe.directory /opt/agentx
 
 cd /opt/agentx
 
-# Secrets — copy from example, then fill in values
+# Secrets — fill in IMAP/SMTP values; leave ANTHROPIC_API_KEY blank (OAuth used instead)
 cp secrets.env.example secrets.env
 nano secrets.env
 chmod 600 secrets.env
-# Also append git identity for the container (not in example, stays on VPS only):
+
+# Append git identity for the ralph container (stays on VPS only, not in git)
 cat >> secrets.env <<'EOF'
 
 # Git identity for ralph container
@@ -97,13 +87,13 @@ GIT_CONFIG_KEY_2=user.email
 GIT_CONFIG_VALUE_2=<git-email>
 EOF
 
-# Agent SSH directory — ralph container runs as non-root (uid 1001); needs its own
-# copy of the deploy key with matching ownership so SSH can read the private key
+# Agent SSH directory — ralph runs as uid 1001 (non-root); needs its own copy of
+# the deploy key with matching ownership. The mount is read-only so we use absolute
+# paths in the SSH config (not ~/) to avoid home dir ambiguity.
 mkdir -p /opt/agentx/.agent-ssh
 cp /root/.ssh/hostinger /opt/agentx/.agent-ssh/
 chmod 700 /opt/agentx/.agent-ssh
 chmod 600 /opt/agentx/.agent-ssh/hostinger
-chown -R 1001:1001 /opt/agentx/.agent-ssh
 cat > /opt/agentx/.agent-ssh/config <<'EOF'
 Host github.com
   IdentityFile /home/ralph/.ssh/hostinger
@@ -111,24 +101,23 @@ Host github.com
   UserKnownHostsFile /dev/null
 EOF
 chmod 600 /opt/agentx/.agent-ssh/config
-chown 1001:1001 /opt/agentx/.agent-ssh/config
+chown -R 1001:1001 /opt/agentx/.agent-ssh
 
-# Claude CLI — login with your personal Anthropic account (no separate agent account needed)
-apt install -y nodejs npm
+# Claude CLI — use your personal Anthropic account (no separate agent account needed)
 npm install -g @anthropic-ai/claude-code
 claude login
 
-# Agent Claude config — the container uses its own writable .claude directory.
-# Copy OAuth credentials from the login above so the container can authenticate.
-# No ANTHROPIC_API_KEY needed; the container uses OAuth mode.
+# Agent Claude config — container uses its own writable .claude dir (not root's).
+# Copy OAuth credentials from the login above. Do NOT use ANTHROPIC_API_KEY;
+# OAuth mode is more reliable and doesn't require managing API keys.
 mkdir -p /opt/agentx/.agent-claude/todos /opt/agentx/.agent-claude/debug \
          /opt/agentx/.agent-claude/statsig /opt/agentx/.agent-claude/sessions
 cp /root/.claude/.credentials.json /opt/agentx/.agent-claude/
 cp /root/.claude/settings.json /opt/agentx/.agent-claude/ 2>/dev/null || true
 chown -R 1001:1001 /opt/agentx/.agent-claude
 
-# Smoke test (always run from main to avoid stale branch errors)
-git checkout main
+# Smoke test — always run from main to avoid stale branch errors
+git checkout main && git pull origin main
 SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1
 ```
 
@@ -139,5 +128,33 @@ SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1
 ```bash
 docker ps          # Docker daemon running
 claude --version   # Claude CLI installed and on PATH
-# SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1 should start the loop, read IMPLEMENTATION_PLAN.md, exit after 1 iteration
+```
+
+Ralph smoke test success looks like:
+```
+[ralph] Auth mode: OAuth credentials file
+[ralph] Creating branch: ralph/workspace-<timestamp>
+[ralph] Starting loop...
+[ralph] ITERATION 1
+... (Claude output) ...
+[ralph] Ralph Session Complete
+```
+
+---
+
+## Re-running After a Failed Attempt
+
+If a previous ralph run left the repo on a stale branch:
+
+```bash
+cd /opt/agentx && git checkout main && git pull origin main
+SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1
+```
+
+## Watching Logs
+
+From a second SSH session:
+
+```bash
+docker logs -f agentx-ralph-1
 ```
