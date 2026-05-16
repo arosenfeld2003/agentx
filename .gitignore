@@ -1,0 +1,9 @@
+secrets.env
+.env
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.venv/
+dist/
+*.egg-info/

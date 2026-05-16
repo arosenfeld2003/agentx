@@ -141,14 +141,14 @@ These are non-negotiable properties, iterated continuously. User retains ultimat
 
 ## Email Trigger
 
-**Trigger mechanism: email to `agentx@rubggp.com`**
+**Trigger mechanism: email to `agentx@runggp.com`**
 
-The agent is awakened by email. A spec file (markdown attachment or inline body) sent to `agentx@rubggp.com` defines the next task. The agent reads it, runs the Ralph loop, and replies with a status summary when done.
+The agent is awakened by email. A spec file (markdown attachment or inline body) sent to `agentx@runggp.com` defines the next task. The agent reads it, runs the Ralph loop, and replies with a status summary when done.
 
 ### Email → Task Flow
 
 ```
-User sends email to agentx@rubggp.com
+User sends email to agentx@runggp.com
   └─ Attachment or body: spec/task markdown
        └─ Mail listener on VPS detects new message
             └─ Extracts spec, writes to workspace/TASK.md
@@ -159,10 +159,10 @@ User sends email to agentx@rubggp.com
 
 ### VPS Mail Stack
 
-The Hostinger domain (`rubggp.com`) already has email. On the VPS:
+The Hostinger domain (`runggp.com`) already has email. On the VPS:
 
 - **Receiving:** Hostinger mail server handles delivery (IMAP-accessible, confirmed)
-- **Listener:** Python script polls Hostinger IMAP for new mail to `agentx@rubggp.com`
+- **Listener:** Python script polls Hostinger IMAP for new mail to `agentx@runggp.com`
 - **Parser:** Extracts markdown spec from body or first `.md` attachment
 - **Dispatcher:** Writes spec to workspace, fires `ralph.sh`
 - **Responder:** On loop completion, sends reply via SMTP with work summary
@@ -216,7 +216,7 @@ Phase 1+: Agent receives spec emails and builds its own improvements
 - [ ] **Phase 0c: VPS compose** — `vps-compose.yml` with VPS-specific paths, persistent workspace on NVMe
 - [ ] **Phase 0d: Structured logging** — JSON log per session, readable by future agent iterations
 - [ ] **Phase 0e: Email listener** — IMAP poller + spec extractor + Ralph dispatcher + reply sender
-- [ ] **Phase 0f: First self-task** — Send spec email to agentx@rubggp.com: "deploy this harness to VPS"
+- [ ] **Phase 0f: First self-task** — Send spec email to agentx@runggp.com: "deploy this harness to VPS"
 - [ ] **Phase 1: Spend tracking** — Log token estimates per iteration, session ceiling, email alert on threshold
 - [ ] **Phase 2: Local models** — Install Ollama, pull Qwen3-14B, wire LiteLLM, benchmark vs Claude API
 - [ ] **Phase 2.1: Model router** — Route tasks to models based on type; local for cost, API for quality
@@ -228,5 +228,3 @@ Phase 1+: Agent receives spec emails and builds its own improvements
 ## Open Questions
 
 - Blog platform: existing setup or new? (affects blog-as-artifact workflow)
-- SSH access pattern to VPS: direct key auth assumed — confirm
-- SSH access pattern to VPS: direct key auth assumed — confirm

@@ -1,7 +1,16 @@
 #!/bin/bash
 # Ralph - Autonomous development loop via Docker
 # Usage: ./ralph.sh [plan] [max_iterations]
-# Auth:  Set ANTHROPIC_API_KEY, or run: docker compose -f "$RALPH_DOCKER/docker-compose.yml" run --rm ralph login
+#
+# Auth (Claude API): Set ANTHROPIC_API_KEY in /opt/agentx/secrets.env (VPS)
+#   or run: docker compose -f "$RALPH_DOCKER/docker-compose.yml" run --rm ralph login
+#
+# VPS usage:
+#   RALPH_DOCKER=/opt/agentx/ralph-docker ./ralph.sh
+#   RALPH_DOCKER=/opt/agentx/ralph-docker ./ralph.sh plan 3
+#
+# Email listener (Python):
+#   uv run --env-file /opt/agentx/secrets.env src/listener.py
 
 RALPH_DOCKER="${RALPH_DOCKER:-$HOME/repos/claude/claudecode/ralph-docker}"
 

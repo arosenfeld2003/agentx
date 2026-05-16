@@ -2,7 +2,7 @@
 
 ## Project Goal
 
-A VPS-hosted autonomous agent that receives task specs via email (agentx@rubggp.com), runs Claude-powered Ralph loops, and replies with results — bootstrapped with Claude API, evolving toward local Qwen3 models.
+A VPS-hosted autonomous agent that receives task specs via email (agentx@runggp.com), runs Claude-powered Ralph loops, and replies with results — bootstrapped with Claude API, evolving toward local Qwen3 models.
 
 ## Tech Stack
 
