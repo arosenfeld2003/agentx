@@ -57,10 +57,6 @@ apt update && apt upgrade -y
 # Use docker.io (Ubuntu pkg) — do NOT install containerd.io, it conflicts
 apt install -y docker.io docker-compose-plugin git curl
 
-# Workspace
-mkdir -p /opt/agentx/workspace
-cd /opt/agentx
-
 # Git identity for the agent account
 git config --global user.name "runggp"
 git config --global user.email "agentx@runggp.com"
@@ -73,9 +69,11 @@ Host github.com
 EOF
 chmod 600 ~/.ssh/config
 
-# Repos
-git clone git@github.com:runggp/agentx.git .
-git clone git@github.com:runggp/scaffold.git scaffold
+# Repos — clone before creating subdirs so the target directory is empty
+git clone git@github.com:runggp/agentx.git /opt/agentx
+git clone git@github.com:runggp/scaffold.git /opt/agentx/scaffold
+mkdir -p /opt/agentx/workspace
+cd /opt/agentx
 
 # Secrets (see secrets.env.example for required keys)
 nano secrets.env
