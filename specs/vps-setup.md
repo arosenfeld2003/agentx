@@ -111,12 +111,16 @@ Host github.com
   UserKnownHostsFile /dev/null
 EOF
 chmod 600 /opt/agentx/.agent-ssh/config
-chown 1000:1000 /opt/agentx/.agent-ssh/config
+chown 1001:1001 /opt/agentx/.agent-ssh/config
 
 # Claude CLI
 apt install -y nodejs npm
 npm install -g @anthropic-ai/claude-code
 claude login
+
+# Ensure .claude subdirs exist — the container mounts /root/.claude read-only
+# and Claude will fail if these are missing
+mkdir -p /root/.claude/todos /root/.claude/debug /root/.claude/statsig
 
 # Smoke test (always run from main to avoid stale branch errors)
 git checkout main
