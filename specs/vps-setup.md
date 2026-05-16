@@ -28,20 +28,49 @@ Use your local Mac directly. Docker adds no meaningful security here — Docker 
 
 ## Phase 0a Setup Sequence
 
+### Step 1 — From your Mac: copy the GitHub deploy key to the VPS
+
+The agent uses `~/.ssh/hostinger` to authenticate to GitHub as `runggp`. Copy it before the main session:
+
+```bash
+scp ~/.ssh/hostinger root@<vps-ip>:~/.ssh/hostinger
+scp ~/.ssh/hostinger.pub root@<vps-ip>:~/.ssh/hostinger.pub
+ssh root@<vps-ip> "chmod 600 ~/.ssh/hostinger"
+```
+
+> **One-time manual step:** Ensure `~/.ssh/hostinger.pub` is added to github.com/runggp → Settings → SSH Keys with **write access**.
+
+---
+
+### Step 2 — On the VPS
+
 ```bash
 ssh root@<vps-ip>
 
 # System
 apt update && apt upgrade -y
+# Use docker.io (Ubuntu pkg) — do NOT install containerd.io, it conflicts
 apt install -y docker.io docker-compose-plugin git curl
 
 # Workspace
 mkdir -p /opt/agentx/workspace
 cd /opt/agentx
 
+# Git identity for the agent account
+git config --global user.name "runggp"
+git config --global user.email "agentx@runggp.com"
+
+# Route GitHub through the deploy key
+cat >> ~/.ssh/config <<'EOF'
+Host github.com
+  IdentityFile ~/.ssh/hostinger
+  StrictHostKeyChecking accept-new
+EOF
+chmod 600 ~/.ssh/config
+
 # Repos
-git clone git@github.com:arosenfeld2003/agentx.git .
-git clone <ralph-docker-repo-url> ralph-docker
+git clone git@github.com:runggp/agentx.git .
+git clone git@github.com:runggp/scaffold.git scaffold
 
 # Secrets (see secrets.env.example for required keys)
 nano secrets.env
@@ -52,7 +81,7 @@ curl -fsSL https://claude.ai/install.sh | sh
 claude login
 
 # Smoke test
-RALPH_DOCKER=/opt/agentx/ralph-docker ./ralph.sh plan 1
+SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1
 ```
 
 ---
@@ -62,5 +91,5 @@ RALPH_DOCKER=/opt/agentx/ralph-docker ./ralph.sh plan 1
 ```bash
 docker ps          # Docker daemon running
 claude --version   # Claude CLI installed and on PATH
-# ralph.sh plan 1 should start the loop, read IMPLEMENTATION_PLAN.md, exit after 1 iteration
+# SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1 should start the loop, read IMPLEMENTATION_PLAN.md, exit after 1 iteration
 ```

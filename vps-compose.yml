@@ -3,7 +3,7 @@ name: agentx
 services:
   ralph:
     build:
-      context: ${RALPH_DOCKER:?Set RALPH_DOCKER=/opt/agentx/ralph-docker}
+      context: ${SCAFFOLD:?Set SCAFFOLD=/opt/agentx/scaffold}
       dockerfile: Dockerfile
     env_file: /opt/agentx/secrets.env
     environment:
@@ -27,9 +27,9 @@ services:
   # Phase 2: uncomment when Ollama is installed
   # litellm:
   #   build:
-  #     context: ${RALPH_DOCKER}
+  #     context: ${SCAFFOLD}
   #     dockerfile: litellm.Dockerfile
   #   volumes:
-  #     - ${RALPH_DOCKER}/litellm-config.yaml:/app/config.yaml:ro
+  #     - ${SCAFFOLD}/litellm-config.yaml:/app/config.yaml:ro
   #   network_mode: host
   #   restart: unless-stopped

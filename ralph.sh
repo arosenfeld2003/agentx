@@ -3,20 +3,20 @@
 # Usage: ./ralph.sh [plan] [max_iterations]
 #
 # Auth (Claude API): Set ANTHROPIC_API_KEY in /opt/agentx/secrets.env (VPS)
-#   or run: docker compose -f "$RALPH_DOCKER/docker-compose.yml" run --rm ralph login
+#   or run: docker compose -f "$SCAFFOLD/docker-compose.yml" run --rm ralph login
 #
 # VPS usage:
-#   RALPH_DOCKER=/opt/agentx/ralph-docker ./ralph.sh
-#   RALPH_DOCKER=/opt/agentx/ralph-docker ./ralph.sh plan 3
+#   SCAFFOLD=/opt/agentx/scaffold ./ralph.sh
+#   SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 3
 #
 # Email listener (Python):
 #   uv run --env-file /opt/agentx/secrets.env src/listener.py
 
-RALPH_DOCKER="${RALPH_DOCKER:-$HOME/repos/claude/claudecode/ralph-docker}"
+SCAFFOLD="${SCAFFOLD:-$HOME/repos/claude/claudecode/scaffold}"
 
-if [ ! -d "$RALPH_DOCKER" ]; then
-    echo "Error: ralph-docker not found at $RALPH_DOCKER"
-    echo "Set RALPH_DOCKER=/path/to/ralph-docker"
+if [ ! -d "$SCAFFOLD" ]; then
+    echo "Error: scaffold not found at $SCAFFOLD"
+    echo "Set SCAFFOLD=/path/to/scaffold"
     exit 1
 fi
 
@@ -33,4 +33,4 @@ else
     export RALPH_MODE=build
 fi
 
-cd "$RALPH_DOCKER" && exec docker compose up ralph
+cd "$SCAFFOLD" && exec docker compose up ralph

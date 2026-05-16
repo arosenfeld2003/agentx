@@ -4,7 +4,7 @@
 
 **Custom harness. No NemoClaw.**
 
-Build on the existing Ralph Wiggum loop (`/repos/claude/claudecode/ralph-docker`) — refactoring it from a Docker-on-local-machine setup to a VPS-native container harness. Start with Claude API as the model backend, add local models (Ollama/Qwen3) as a second layer once the loop is stable.
+Build on the existing Ralph Wiggum loop (`https://github.com/runggp/scaffold`) — refactoring it from a Docker-on-local-machine setup to a VPS-native container harness. Start with Claude API as the model backend, add local models (Ollama/Qwen3) as a second layer once the loop is stable.
 
 Build it agentically. Document the work on the blog as it progresses.
 
@@ -12,7 +12,7 @@ Build it agentically. Document the work on the blog as it progresses.
 
 ## What Ralph Already Gives Us
 
-The `ralph-docker` repo is a solid foundation. Key things to keep:
+The `scaffold` repo is a solid foundation. Key things to keep:
 
 - **The loop pattern** — each iteration: read disk state → call model → tool dispatch → commit → repeat
 - **Fresh context per iteration** — Claude reads `IMPLEMENTATION_PLAN.md` and `specs/*` fresh each run; makes the loop resumable
@@ -64,7 +64,7 @@ The core change: instead of `docker compose up` from a dev machine mounting a lo
 | Trigger mechanism | Manual `./ralph.sh` | Cron, webhook, or manual SSH |
 | Observability | Terminal stdout | Structured logs + optional dashboard |
 
-### What to Preserve From ralph-docker
+### What to Preserve From scaffold
 
 - `scripts/loop.sh` — the iteration engine (minimal changes needed)
 - `scripts/entrypoint.sh` — auth detection and validation
@@ -211,8 +211,8 @@ Phase 1+: Agent receives spec emails and builds its own improvements
 
 ## Implementation Plan (Initial)
 
-- [ ] **Phase 0a: VPS baseline** — SSH in, install Docker, verify connectivity, pull ralph-docker
-- [ ] **Phase 0b: Lift and shift** — Run ralph-docker on VPS with Claude API, confirm loop works end-to-end
+- [ ] **Phase 0a: VPS baseline** — SSH in, install Docker, verify connectivity, pull scaffold
+- [ ] **Phase 0b: Lift and shift** — Run scaffold on VPS with Claude API, confirm loop works end-to-end
 - [ ] **Phase 0c: VPS compose** — `vps-compose.yml` with VPS-specific paths, persistent workspace on NVMe
 - [ ] **Phase 0d: Structured logging** — JSON log per session, readable by future agent iterations
 - [ ] **Phase 0e: Email listener** — IMAP poller + spec extractor + Ralph dispatcher + reply sender

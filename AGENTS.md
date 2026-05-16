@@ -7,7 +7,7 @@ A VPS-hosted autonomous agent that receives task specs via email (agentx@runggp.
 ## Tech Stack
 
 - **Python 3.14** — IMAP email listener, spec parser, SMTP responder
-- **Bash** — Ralph loop (adapted from ralph-docker)
+- **Bash** — Ralph loop (adapted from scaffold: https://github.com/runggp/scaffold)
 - **Docker / Docker Compose** — containerized execution on Ubuntu 24.04 VPS
 - **Claude API** — model backend (Phase 1); Ollama/Qwen3 added in Phase 2
 - **Hostinger KVM 4** — 4 vCPU, 16 GB RAM, 200 GB NVMe
