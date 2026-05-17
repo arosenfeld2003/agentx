@@ -35,4 +35,4 @@ else
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCAFFOLD" && exec docker compose -f "$SCRIPT_DIR/vps-compose.yml" up ralph
+cd "$SCAFFOLD" && exec docker compose -f "$SCRIPT_DIR/vps-compose.yml" up --build ralph
