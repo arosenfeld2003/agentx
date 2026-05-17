@@ -2,7 +2,6 @@
 
 ## Current Focus
 
-- [ ] **Phase 0d: Structured logging** — JSON log per session, readable by future agent iterations
 - [ ] **Phase 0f: First self-task** — Send spec email to agentx@runggp.com: "deploy this harness to VPS"
 - [ ] **Phase 1: Spend tracking** — Log token estimates per iteration, session ceiling, email alert on threshold
 - [ ] **Phase 2: Local models** — Install Ollama, pull Qwen3-14B, wire LiteLLM, benchmark vs Claude API
@@ -14,6 +13,7 @@
 - [x] **Phase 0a: VPS baseline** — SSH, Docker, git, credentials — see `specs/vps-setup.md`
 - [x] **Phase 0b: Lift and shift** — scaffold runs on VPS with Claude API (OAuth mode)
 - [x] **Phase 0c: VPS compose** — `vps-compose.yml` with VPS paths, persistent workspace, Entire enabled
+- [x] **Phase 0d: Structured logging** — Phase 0d complete: `scaffold/lib/session-logger.js` parses Claude stream-json after each iteration, writes `logs/sessions/<session-id>.json` with timestamp, model, cost, tokens, tools_called, files_changed, commit_hash. Called from `scaffold/scripts/loop.sh` — non-blocking, degrades gracefully. Tests in `scaffold/tests/test_session_logger.js` (12 tests).
 - [x] **Phase 0e: Email listener** — `src/listener.py` implements async IMAP polling (aioimaplib), spec extraction from body/.md attachment, Ralph dispatch via subprocess, SMTP reply (aiosmtplib), and `[stop]`/`[status]` control commands. Tests in `src/tests/test_listener.py`. Run on VPS host: `uv run --env-file /opt/agentx/secrets.env src/listener.py`
 
 ## Notes
