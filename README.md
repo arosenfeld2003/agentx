@@ -108,6 +108,13 @@ Same ownership issue — fix with `chown` above, then retry.
 ssh -i /opt/agentx/.agent-ssh/hostinger -T git@github.com   # test key
 ```
 
+### `entire: not found` errors on host-side git operations
+`entire` only exists inside the Docker container. If `entire enable` ran inside the container, it installs git hooks into `.git/hooks/` that call `entire` — these break any git commands run directly on the VPS host. Remove them:
+```bash
+rm /opt/agentx/.git/hooks/commit-msg /opt/agentx/.git/hooks/pre-push /opt/agentx/.git/hooks/post-commit 2>/dev/null
+```
+This is safe — the hooks only serve Entire observability inside the container, where `entire` is available.
+
 ### Behind origin warning at startup
 Ralph warns if `main` has unpulled commits. Pull before running:
 ```bash
