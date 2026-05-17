@@ -7,3 +7,10 @@ __pycache__/
 .venv/
 dist/
 *.egg-info/
+
+# Ralph runtime — never commit these
+.agent-claude/
+.agent-ssh/
+scaffold/
+.entire/
+.claude/
