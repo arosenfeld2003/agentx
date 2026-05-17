@@ -32,6 +32,7 @@ elif [[ "$1" =~ ^[0-9]+$ ]]; then
     export RALPH_MAX_ITERATIONS="$1"
 else
     export RALPH_MODE=build
+    [ -n "$2" ] && export RALPH_MAX_ITERATIONS="$2"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
