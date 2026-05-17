@@ -6,13 +6,14 @@
 #   or run: docker compose -f "$SCAFFOLD/docker-compose.yml" run --rm ralph login
 #
 # VPS usage:
-#   SCAFFOLD=/opt/agentx/scaffold ./ralph.sh
-#   SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 3
+#   ./ralph.sh
+#   ./ralph.sh plan 3
 #
 # Email listener (Python):
 #   uv run --env-file /opt/agentx/secrets.env src/listener.py
 
-SCAFFOLD="${SCAFFOLD:-$HOME/repos/claude/claudecode/scaffold}"
+SCAFFOLD="${SCAFFOLD:-$(cd "$(dirname "$0")" && pwd)/scaffold}"
+export SCAFFOLD
 
 if [ ! -d "$SCAFFOLD" ]; then
     echo "Error: scaffold not found at $SCAFFOLD"

@@ -117,7 +117,7 @@ chown -R 1001:1001 /opt/agentx/.agent-claude
 
 # Smoke test — always run from main to avoid stale branch errors
 git checkout main && git pull origin main
-SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1
+./ralph.sh plan 1
 ```
 
 ---
@@ -147,7 +147,7 @@ If a previous ralph run left the repo on a stale branch:
 
 ```bash
 cd /opt/agentx && git checkout main && git pull origin main
-SCAFFOLD=/opt/agentx/scaffold ./ralph.sh plan 1
+./ralph.sh plan 1
 ```
 
 ## Watching Logs
