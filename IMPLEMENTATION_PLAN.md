@@ -3,7 +3,7 @@
 ## Current Focus
 
 - [ ] **Phase 0d: Structured logging** — JSON log per session, readable by future agent iterations
-- [ ] **Phase 0f: First self-task** — Send spec email to agentx@runggp.com: "deploy this harness to VPS"
+- [ ] **Phase 0f: First self-task** — Send a spec email to agentx@runggp.com tasking ralph to research and write `specs/local-models.md`: ranked shortlist of Ollama-compatible models for general-purpose and coding tasks that fit within 10GB RAM (16GB VPS, ~6GB reserved for OS/Docker), including model name, size, quantization level, and a one-line rationale, covering at least one strong coding-focused and one general-purpose option. Listener dispatches it as a ralph loop and replies with results via SMTP; proves the full operator email round-trip end-to-end.
 - [ ] **Phase 1: Spend tracking** — Log token estimates per iteration, session ceiling, email alert on threshold
 - [ ] **Phase 2: Local models** — Install Ollama, pull Qwen3-14B, wire LiteLLM, benchmark vs Claude API
 - [ ] **Phase 2.1: Model router** — Route tasks to models based on type; local for cost, API for quality
