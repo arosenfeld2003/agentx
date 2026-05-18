@@ -7,7 +7,7 @@
 
 ## Current Focus
 
-- [~] **Phase 0f: First self-task** — `src/send_task.py` implemented and unit-tested (mocked SMTP). Pending: actually run `uv run src/send_task.py` on the VPS, confirm the email arrives at agentx@runggp.com, listener dispatches a ralph loop, and a reply is received. Only then is the round-trip proven.
+- [~] **Phase 0f: First self-task** — `src/send_task.py` implemented and unit-tested (mocked SMTP). Pending: run `uv run --env-file /opt/agentx/secrets.env src/send_task.py "research local models" specs/local-models-task.md` from inside the container, confirm the email arrives at agentx@runggp.com, the listener (running on VPS host) dispatches a new ralph loop, and a reply is received. uv is now available in the container.
 - [ ] **Phase 2: Local models** — Install Ollama on VPS host, pull a model (see `specs/local-models.md` once written), wire LiteLLM proxy, benchmark vs Claude API. Requires manual Ollama install before ralph can proceed.
 - [ ] **Phase 2.1: Model router** — Route tasks to models based on type; local for cost, API for quality
 - [~] **Phase 3: Self-monitoring** — `scaffold/lib/session-logger.js` gains a `report` command that reads all `logs/sessions/*.json` and outputs a markdown audit trail (session count, total spend, top tools, per-session breakdown). `scaffold/scripts/loop.sh` prepends this report to the prompt before each loop so Ralph sees its own history. 24 tests pass (6 new). Pending: observation that the report actually appears in a live loop run.
@@ -37,7 +37,8 @@ uv run --dev mypy src/listener.py
 ```
 
 ### Known constraints
-- Docker container (node:22-slim) has no Python — listener runs on VPS host, not inside Docker
+- `uv` is installed in the Docker container — ralph can run `uv run` for Python scripts and `uv run --dev pytest` for tests
+- The listener (`src/listener.py`) runs on the VPS host as a long-running daemon, not inside Docker
 - `pyproject.toml` specifies Python >=3.14; uv installs the correct version automatically
 - Listener secrets come from `secrets.env` via `--env-file` flag; never baked into Docker
-- `send_task.py` sends to IMAP_USER; if `AGENTX_ALLOWED_SENDERS` is non-empty it must include `SMTP_USER` for self-tasks to be accepted by the listener
+- `SMTP_USER` is always implicitly allowed by the listener — self-sent tasks work regardless of `AGENTX_ALLOWED_SENDERS`

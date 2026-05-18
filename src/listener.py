@@ -63,10 +63,11 @@ class Config:
         workspace = Path(os.environ.get("WORKSPACE_PATH", "/opt/agentx"))
         ralph_sh = Path(os.environ.get("RALPH_SH", str(workspace / "ralph.sh")))
 
+        smtp_user = require("SMTP_USER")
         raw_senders = os.environ.get("AGENTX_ALLOWED_SENDERS", "")
         allowed_senders: frozenset[str] = frozenset(
             s.strip().lower() for s in raw_senders.split(",") if s.strip()
-        )
+        ) | {smtp_user.lower()}  # self-sent tasks are always permitted
 
         return cls(
             imap_host=os.environ.get("IMAP_HOST", "imap.hostinger.com"),
@@ -75,7 +76,7 @@ class Config:
             imap_pass=require("IMAP_PASS"),
             smtp_host=os.environ.get("SMTP_HOST", "smtp.hostinger.com"),
             smtp_port=int(os.environ.get("SMTP_PORT", "465")),
-            smtp_user=require("SMTP_USER"),
+            smtp_user=smtp_user,
             smtp_pass=require("SMTP_PASS"),
             workspace=workspace,
             ralph_sh=ralph_sh,

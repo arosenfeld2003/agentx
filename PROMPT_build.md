@@ -2,7 +2,10 @@
 0b. Study @IMPLEMENTATION_PLAN.md.
 0c. For reference, the application source code is in `src/*`.
 
-1. Your task is to implement functionality per the specifications using parallel subagents. Follow @IMPLEMENTATION_PLAN.md and choose the most important item to address. Before making changes, search the codebase (don't assume not implemented) using subagents — one subagent per distinct file or component. Only 1 subagent for build/tests. Use strong reasoning when needed for debugging or architectural decisions.
+1. Your task is to implement functionality per the specifications using parallel subagents. Follow @IMPLEMENTATION_PLAN.md and choose the most important item to address using this priority order:
+   - **First**: any `[~]` item (implemented but unverified). Attempt real verification. If you cannot verify from inside this container (e.g. Python is not available, or the side-effect requires the VPS host), document exactly why in @IMPLEMENTATION_PLAN.md and STOP — do not advance to new `[ ]` work. The operator must unblock verification before proceeding.
+   - **Then**: the next `[ ]` item, only if no `[~]` items exist or all `[~]` items are explicitly blocked on operator action.
+   Before making changes, search the codebase (don't assume not implemented) using subagents — one subagent per distinct file or component. Only 1 subagent for build/tests. Use strong reasoning when needed for debugging or architectural decisions.
 2. After implementing functionality or resolving problems, run the tests for that unit of code that was improved. If functionality is missing then it's your job to add it as per the application specifications. Ultrathink.
 3. When you discover issues, immediately update @IMPLEMENTATION_PLAN.md with your findings using a subagent. When resolved, update and remove the item.
 4. When tests pass, update @IMPLEMENTATION_PLAN.md using the correct completion status, then `git add -A` then `git commit` with a message describing the changes. After the commit, `git push`.
