@@ -1,6 +1,14 @@
-0a. Study `specs/*` using one subagent per spec file to learn the application specifications.
-0b. Study @IMPLEMENTATION_PLAN.md.
-0c. For reference, the application source code is in `src/*`.
+0a. Check whether `TASK.md` exists in the workspace.
+  - **If `TASK.md` exists**: read it now and treat it as the ONLY task in scope. Skip the full IMPLEMENTATION_PLAN.md scan — the task file is self-contained. When the task is complete (tests pass, committed, pushed):
+      1. Update the status line in the source task file under `tasks/` to `[x]` and record a one-line completion note.
+      2. Move the task's row in `IMPLEMENTATION_PLAN.md` from **Active Tasks** to **Completed** (use the task title, not the file link).
+      3. Delete `TASK.md`.
+    Do not work on any other pending items.
+  - **If `TASK.md` does not exist**: proceed with the full flow below.
+
+0b. Study `specs/*` using one subagent per spec file to learn the application specifications.
+0c. Study @IMPLEMENTATION_PLAN.md. Task files are in `tasks/` — read the relevant task file for the item you choose to work on.
+0d. For reference, the application source code is in `src/*`.
 
 1. Your task is to implement functionality per the specifications using parallel subagents. Follow @IMPLEMENTATION_PLAN.md and choose the most important item to address using this priority order:
    - **First**: any `[~]` item (implemented but unverified). Attempt real verification. If you cannot verify from inside this container (e.g. Python is not available, or the side-effect requires the VPS host), document exactly why in @IMPLEMENTATION_PLAN.md and STOP — do not advance to new `[ ]` work. The operator must unblock verification before proceeding.

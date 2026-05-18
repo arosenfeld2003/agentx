@@ -27,6 +27,21 @@ export RALPH_MAX_ITERATIONS="${RALPH_MAX_ITERATIONS:-5}"
 if [ "$1" = "plan" ]; then
     export RALPH_MODE=plan
     [ -n "$2" ] && export RALPH_MAX_ITERATIONS="$2"
+elif [ "$1" = "task" ]; then
+    # Focus ralph on a single task file: ./ralph.sh task tasks/<name>.md
+    # Copies the file to TASK.md so the build prompt works on it exclusively.
+    if [ -z "$2" ]; then
+        echo "Usage: ./ralph.sh task <path-to-task-file>"
+        exit 1
+    fi
+    if [ ! -f "$2" ]; then
+        echo "Error: task file not found: $2"
+        exit 1
+    fi
+    cp "$2" "$(pwd)/TASK.md"
+    echo "Task loaded: $2 → TASK.md"
+    export RALPH_MODE=build
+    [ -n "$3" ] && export RALPH_MAX_ITERATIONS="$3"
 elif [[ "$1" =~ ^[0-9]+$ ]]; then
     export RALPH_MODE=build
     export RALPH_MAX_ITERATIONS="$1"
