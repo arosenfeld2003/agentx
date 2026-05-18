@@ -328,6 +328,7 @@ async def poll_once(cfg: Config, imap: aioimaplib.IMAP4_SSL) -> None:
         try:
             # BODY.PEEK[] is RFC 3501 and widely supported; RFC822 is legacy.
             fetch_status, fetch_data = await imap.fetch(seq, "(BODY.PEEK[])")
+            log.debug("FETCH seq=%s status=%s data=%r", seq, fetch_status, fetch_data)
             if fetch_status != "OK":
                 log.warning("FETCH failed for seq %s: %s", seq, fetch_status)
                 continue
@@ -336,6 +337,7 @@ async def poll_once(cfg: Config, imap: aioimaplib.IMAP4_SSL) -> None:
             # The actual message body is the largest bytes item in the response.
             raw: bytes | None = None
             candidates = [item for item in fetch_data if isinstance(item, bytes) and item != b")"]
+            log.debug("FETCH candidates lengths: %s", [len(c) for c in candidates])
             if candidates:
                 raw = max(candidates, key=len)
 
@@ -379,7 +381,7 @@ async def run_listener(cfg: Config) -> None:
 
 def main() -> None:
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         stream=sys.stdout,
     )
