@@ -35,12 +35,11 @@ services:
         max-size: "50m"
         max-file: "10"
 
-  # Phase 2: uncomment when Ollama is installed
-  # litellm:
-  #   build:
-  #     context: ${SCAFFOLD}
-  #     dockerfile: litellm.Dockerfile
-  #   volumes:
-  #     - ${SCAFFOLD}/litellm-config.yaml:/app/config.yaml:ro
-  #   network_mode: host
-  #   restart: unless-stopped
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    env_file: ${WORKSPACE_PATH:-/opt/agentx}/secrets.env
+    volumes:
+      - ${WORKSPACE_PATH:-/opt/agentx}/litellm-config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    network_mode: host
+    restart: unless-stopped

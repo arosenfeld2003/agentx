@@ -32,7 +32,28 @@ docker compose up
 
 ## Operational Notes
 
-_Ralph will update this section as it learns about the codebase._
+### LiteLLM (Phase 2 — local models)
+
+After operator completes VPS prerequisites (Ollama installed, `qwen3:8b` pulled):
+
+```bash
+# Start LiteLLM proxy
+docker compose -f vps-compose.yml up -d litellm
+
+# Verify proxy is healthy
+curl http://localhost:4000/health
+
+# Run ralph with local model
+RALPH_MODEL=qwen3:8b ./ralph.sh
+```
+
+Add to `secrets.env` on VPS before starting LiteLLM:
+```
+LITELLM_MASTER_KEY=<random-string>
+ANTHROPIC_BASE_URL=http://localhost:4000
+```
+
+To revert to Claude API: remove `ANTHROPIC_BASE_URL` from `secrets.env` and restore `RALPH_MODEL=claude-sonnet-4-6`.
 
 ### Codebase Patterns
 
