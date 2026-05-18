@@ -16,7 +16,7 @@ Each task lives in its own file under `tasks/`. To run ralph on a single task:
 
 | Status | Task | File |
 |--------|------|------|
-| `[ ]` | Phase 2: Local models (Ollama + LiteLLM) | [tasks/phase-2-local-models.md](tasks/phase-2-local-models.md) |
+| `[~]` | Phase 2: Local models (Ollama + LiteLLM) | [tasks/phase-2-local-models.md](tasks/phase-2-local-models.md) |
 | `[~]` | Phase 0f: First self-task (email round-trip) | [tasks/phase-0f-first-self-task.md](tasks/phase-0f-first-self-task.md) |
 | `[ ]` | Phase 2.1: Model router | [tasks/phase-2.1-model-router.md](tasks/phase-2.1-model-router.md) |
 
@@ -47,6 +47,17 @@ uv run --dev pytest --tb=short -v
 uv run --dev ruff check src/
 uv run --dev mypy src/listener.py
 ```
+
+### Phase 2 verification blocked on operator
+
+Ralph has implemented: `litellm-config.yaml`, LiteLLM service in `vps-compose.yml`, `secrets.env.example` additions, `AGENTS.md` startup docs.
+
+Operator must complete before `[~]` → `[x]`:
+1. On VPS host: `curl -fsSL https://ollama.com/install.sh | sh && systemctl enable --now ollama && ollama pull qwen3:8b`
+2. Add `LITELLM_MASTER_KEY` and `ANTHROPIC_BASE_URL=http://localhost:4000` to `/opt/agentx/secrets.env`
+3. `docker compose -f vps-compose.yml up -d litellm`
+4. `curl http://localhost:4000/health`
+5. `RALPH_MODEL=qwen3:8b ./ralph.sh 1` — confirm session log shows `qwen3:8b`
 
 ### Known constraints
 - `uv` is in the Docker container — use `uv run` for Python scripts and tests
