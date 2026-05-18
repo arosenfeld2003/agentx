@@ -50,5 +50,19 @@ else
     [ -n "$2" ] && export RALPH_MAX_ITERATIONS="$2"
 fi
 
+# Pre-warm Ollama when using a local model so LiteLLM health checks succeed immediately.
+# Without this, the first /health call blocks while Ollama loads the model (~30-60s on CPU),
+# and the scaffold's poller times out before getting a response.
+if [[ "${RALPH_MODEL:-}" == ollama/* ]]; then
+    OLLAMA_MODEL="${RALPH_MODEL#ollama/}"
+    OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
+    echo "[ralph] Pre-warming Ollama model: $OLLAMA_MODEL"
+    curl -sf "$OLLAMA_HOST/api/generate" \
+        -d "{\"model\":\"$OLLAMA_MODEL\",\"prompt\":\"hi\",\"stream\":false}" \
+        --max-time 120 > /dev/null \
+        && echo "[ralph] Ollama ready" \
+        || echo "[ralph] Warning: Ollama pre-warm failed — proxy health check may be slow"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCAFFOLD" && exec docker compose -f "$SCRIPT_DIR/vps-compose.yml" up --build ralph
