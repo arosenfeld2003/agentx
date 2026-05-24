@@ -45,6 +45,19 @@ apt update && apt upgrade -y
 # Use docker.io (Ubuntu pkg) — do NOT install containerd.io, it conflicts
 apt install -y docker.io docker-compose-plugin git curl nodejs npm
 
+# Swap memory — create a 6 GB swap file for safety when loading large models
+fallocate -l 6G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+# Prefer RAM, use swap only under pressure
+sysctl vm.swappiness=10
+echo 'vm.swappiness=10' >> /etc/sysctl.conf
+# Verify
+free -h
+swapon --show
+
 # Git identity for the agent account
 git config --global user.name "<git-username>"
 git config --global user.email "<git-email>"

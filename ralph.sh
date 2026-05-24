@@ -50,10 +50,16 @@ else
     [ -n "$2" ] && export RALPH_MAX_ITERATIONS="$2"
 fi
 
-# Pre-warm Ollama when using a local model so LiteLLM health checks succeed immediately.
-# Without this, the first /health call blocks while Ollama loads the model (~30-60s on CPU),
-# and the scaffold's poller times out before getting a response.
+# When using a local model: restart LiteLLM to clear stale connections (aiohttp
+# connection reuse bug causes 500 errors after ~48 min of accumulated requests),
+# then pre-warm Ollama so the model is in memory before the health check runs.
 if [[ "${RALPH_MODEL:-}" == ollama/* ]]; then
+    SCRIPT_DIR_INNER="$(cd "$(dirname "$0")" && pwd)"
+    echo "[ralph] Restarting LiteLLM to clear connection state..."
+    docker compose -f "$SCRIPT_DIR_INNER/vps-compose.yml" restart litellm 2>/dev/null \
+        && sleep 5 \
+        || echo "[ralph] Warning: LiteLLM restart failed (may not be running)"
+
     OLLAMA_MODEL="${RALPH_MODEL#ollama/}"
     OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
     echo "[ralph] Pre-warming Ollama model: $OLLAMA_MODEL"
