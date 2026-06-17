@@ -37,3 +37,17 @@ See `specs/local-models.md` → Acceptance Criteria section.
 Step 2 cannot begin until the operator has completed step 1 on the VPS host.
 Ralph should implement step 2 (config files, compose changes), then stop and
 document that operator must run step 1 + verification.
+
+## Known Gotchas
+
+- **`api_base` in `litellm-config.yaml` must use `172.17.0.1:11434`**, not `127.0.0.1` or `host.docker.internal`.
+  LiteLLM runs inside Docker; `127.0.0.1` resolves to the container's own loopback and `host.docker.internal`
+  is a Mac/Windows-only DNS alias. On Linux, `172.17.0.1` is the Docker bridge gateway that routes to the host.
+  Verify with: `docker network inspect bridge | grep Gateway`
+
+- **LiteLLM lowercases model names** when routing. `model_name` entries in `litellm-config.yaml` must use
+  lowercase quantization suffixes (e.g. `q4_k_m`, not `q4_K_M`), otherwise LiteLLM fails to match the route
+  and falls back to Anthropic, returning a 400 error.
+
+- **`/health` hangs** because it pings all configured models. Use `/health/liveliness` to confirm the proxy
+  process is up without waiting on Ollama.
