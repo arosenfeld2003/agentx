@@ -16,7 +16,7 @@ Each task lives in its own file under `tasks/`. To run ralph on a single task:
 
 | Status | Task | File |
 |--------|------|------|
-| `[~]` | Phase 2: Local models (Ollama + LiteLLM) | [tasks/phase-2-local-models.md](tasks/phase-2-local-models.md) |
+| `[x]` | Phase 2: Local models (Ollama + LiteLLM) | [tasks/phase-2-local-models.md](tasks/phase-2-local-models.md) |
 | `[~]` | Phase 0f: First self-task (email round-trip) | [tasks/phase-0f-first-self-task.md](tasks/phase-0f-first-self-task.md) |
 | `[ ]` | Phase 2.1: Model router | [tasks/phase-2.1-model-router.md](tasks/phase-2.1-model-router.md) |
 
