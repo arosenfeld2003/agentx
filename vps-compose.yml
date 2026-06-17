@@ -43,3 +43,15 @@ services:
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     network_mode: host
     restart: unless-stopped
+
+  proxy:
+    build:
+      context: ${SCAFFOLD:-/opt/agentx/scaffold}
+      dockerfile: proxy.Dockerfile
+    environment:
+      LITELLM_URL: http://localhost:4000
+      PROXY_PORT: "4001"
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      - litellm
