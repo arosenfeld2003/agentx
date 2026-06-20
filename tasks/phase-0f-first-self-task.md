@@ -1,6 +1,6 @@
 # Phase 0f: First Self-Task
 
-**Status:** `[~]` — implemented, pending real-world verification
+**Status:** `[x]` — verified complete (2026-06-17)
 
 ## Description
 
@@ -12,10 +12,10 @@ listener side: receiving the email, dispatching ralph, and replying.
 
 ## Acceptance Criteria
 
-- [ ] Listener receives a `[task]` email and logs "Processing message"
-- [ ] `ralph.sh` subprocess is launched (appears in listener log)
-- [ ] Reply email is received at the sending address
-- [ ] IMPLEMENTATION_PLAN shows the full loop verified end-to-end
+- [x] Listener receives a `[task]` email and logs "Processing message"
+- [x] `ralph.sh` subprocess is launched (appears in listener log)
+- [x] Reply email is received at the sending address
+- [x] IMPLEMENTATION_PLAN shows the full loop verified end-to-end
 
 ## Known Blockers
 

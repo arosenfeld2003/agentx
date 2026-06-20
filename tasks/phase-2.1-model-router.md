@@ -1,6 +1,6 @@
 # Phase 2.1: Model Router
 
-**Status:** `[ ]` — not started; depends on Phase 2
+**Status:** `[~]` — implemented, pending real-world verification
 
 ## Description
 

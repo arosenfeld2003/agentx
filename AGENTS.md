@@ -55,6 +55,27 @@ ANTHROPIC_BASE_URL=http://localhost:4000
 
 To revert to Claude API: remove `ANTHROPIC_BASE_URL` from `secrets.env` and restore `RALPH_MODEL=claude-sonnet-4-6`.
 
+### Model Routing (Phase 2.1)
+
+Route tasks to different models by using a hint in the email subject:
+
+| Subject format | Model used | LiteLLM bypassed? |
+|---|---|---|
+| `[task] desc` | `RALPH_DEFAULT_MODEL` or inherited `RALPH_MODEL` | No |
+| `[task:local] desc` | `RALPH_LOCAL_MODEL` (default: `qwen3:8b`) | No |
+| `[task:local:qwen3:14b] desc` | `qwen3:14b` | No |
+| `[task:api] desc` | `RALPH_API_MODEL` (default: `claude-sonnet-4-6`) | Yes — `ANTHROPIC_BASE_URL` removed |
+| `[task:api:claude-opus-4-8] desc` | `claude-opus-4-8` | Yes |
+
+**Why bypass matters:** When `ANTHROPIC_BASE_URL=http://localhost:4000` is set (Phase 2 LiteLLM mode), all SDK calls route through the proxy. `[task:api]` removes `ANTHROPIC_BASE_URL` from the subprocess env so the Anthropic SDK talks directly to the real API.
+
+Configure defaults in `secrets.env`:
+```
+RALPH_DEFAULT_MODEL=   # empty = use whatever RALPH_MODEL is set to in compose
+RALPH_LOCAL_MODEL=     # empty = qwen3:8b
+RALPH_API_MODEL=       # empty = claude-sonnet-4-6
+```
+
 ### Codebase Patterns
 
 _Document patterns as they emerge._

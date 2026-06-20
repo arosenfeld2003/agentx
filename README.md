@@ -65,6 +65,96 @@ git push runggp --delete ralph/<branch>
 
 ---
 
+## Controlling the Agent via Email
+
+The listener runs on the VPS host and polls `agentx@runggp.com` every 30 seconds. Send emails to that address to trigger tasks, check status, or stop the loop.
+
+### Who can send
+
+By default only `agentx@runggp.com` itself is authorised (for self-sent tasks via `send_task.py`). To send from your personal address, add it to `secrets.env`:
+
+```
+AGENTX_ALLOWED_SENDERS=you@example.com
+```
+
+Restart the listener after changing this.
+
+### Subject prefixes
+
+All commands live in the subject line using `[command]` prefixes:
+
+| Subject | Effect |
+|---|---|
+| `[task] <description>` | Run ralph with the default model |
+| `[task:local] <description>` | Force local model (`RALPH_LOCAL_MODEL`, default `qwen3:8b`) |
+| `[task:local:qwen3:14b] <description>` | Force a specific local model by name |
+| `[task:api] <description>` | Force Claude API, bypassing LiteLLM |
+| `[task:api:claude-opus-4-8] <description>` | Force a specific Claude API model |
+| `[status]` | Reply with loop state and recent commits |
+| `[stop]` | Write a `.stop` sentinel — loop exits after its current iteration |
+
+Emails with unrecognised subjects are silently ignored.
+
+### Writing a task email
+
+The email body becomes the task spec that ralph works from. Write it as markdown:
+
+```
+Subject: [task] add rate limiting to the API
+
+# Rate Limiting
+
+Add per-IP rate limiting to the proxy. Use a token bucket algorithm.
+
+## Acceptance Criteria
+- [ ] Requests over 60/min from a single IP return 429
+- [ ] Limit is configurable via env var RATE_LIMIT_RPM
+```
+
+You can also attach a `.md` file instead of writing in the body — the attachment takes priority.
+
+### Send a task from the VPS (programmatic)
+
+```bash
+cd /opt/agentx
+echo "# Spec\n\nDo the thing." | uv run --env-file /opt/agentx/secrets.env src/send_task.py "task description"
+# or with a file:
+uv run --env-file /opt/agentx/secrets.env src/send_task.py "task description" tasks/my-task.md
+```
+
+### What the reply looks like
+
+After ralph finishes you'll receive a reply with:
+
+```
+Ralph loop completed.
+
+Task: <description>
+Model: <model used>
+
+--- Output (last 50 lines) ---
+<ralph stdout>
+```
+
+If the loop times out (default 30 min) or exits non-zero, the reply will say so.
+
+### Quoted replies and HTML
+
+If you reply to an agentx email (e.g. to follow up with a new `[task]`), the listener strips quoted lines (`>`) and `On ... wrote:` blocks before extracting the spec. The spec is whatever is in the **new** content above the quote. HTML emails are also supported — the listener converts them to plain text.
+
+### Starting and stopping the listener
+
+```bash
+# Start
+cd /opt/agentx && uv run --env-file /opt/agentx/secrets.env src/listener.py
+
+# Stop (Ctrl-C, or send a [stop] email to stop the ralph loop first)
+```
+
+The listener reconnects automatically if the IMAP connection drops.
+
+---
+
 ## Steering the Agent
 
 ### Update the task list

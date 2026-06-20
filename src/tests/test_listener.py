@@ -13,6 +13,8 @@ import pytest
 
 from listener import (
     Config,
+    _resolve_model,
+    _strip_quoted_reply,
     dispatch_task,
     extract_spec,
     get_status,
@@ -73,33 +75,150 @@ def make_email(
 
 class TestParseSubject:
     def test_task_with_description(self) -> None:
-        prefix, desc = parse_subject("[task] deploy the harness")
+        prefix, desc, hint = parse_subject("[task] deploy the harness")
         assert prefix == "task"
         assert desc == "deploy the harness"
+        assert hint is None
 
     def test_stop(self) -> None:
-        prefix, desc = parse_subject("[stop]")
+        prefix, desc, hint = parse_subject("[stop]")
         assert prefix == "stop"
         assert desc == ""
+        assert hint is None
 
     def test_status(self) -> None:
-        prefix, desc = parse_subject("[status]")
+        prefix, desc, hint = parse_subject("[status]")
         assert prefix == "status"
         assert desc == ""
+        assert hint is None
 
     def test_case_insensitive(self) -> None:
-        prefix, _ = parse_subject("[TASK] something")
+        prefix, _, _ = parse_subject("[TASK] something")
         assert prefix == "task"
 
     def test_unrecognized(self) -> None:
-        prefix, raw = parse_subject("Hello world")
+        prefix, raw, hint = parse_subject("Hello world")
         assert prefix == ""
         assert raw == "Hello world"
+        assert hint is None
 
     def test_task_no_description(self) -> None:
-        prefix, desc = parse_subject("[task]")
+        prefix, desc, hint = parse_subject("[task]")
         assert prefix == "task"
         assert desc == ""
+        assert hint is None
+
+    def test_task_local_hint(self) -> None:
+        prefix, desc, hint = parse_subject("[task:local] fix typo")
+        assert prefix == "task"
+        assert desc == "fix typo"
+        assert hint == "local"
+
+    def test_task_local_explicit_model(self) -> None:
+        prefix, desc, hint = parse_subject("[task:local:qwen3:14b] refactor")
+        assert prefix == "task"
+        assert desc == "refactor"
+        assert hint == "local:qwen3:14b"
+
+    def test_task_api_hint(self) -> None:
+        prefix, desc, hint = parse_subject("[task:api] design architecture")
+        assert prefix == "task"
+        assert desc == "design architecture"
+        assert hint == "api"
+
+    def test_task_api_explicit_model(self) -> None:
+        prefix, desc, hint = parse_subject("[task:api:claude-opus-4-8] security review")
+        assert prefix == "task"
+        assert desc == "security review"
+        assert hint == "api:claude-opus-4-8"
+
+
+# ---------------------------------------------------------------------------
+# _resolve_model
+# ---------------------------------------------------------------------------
+
+class TestResolveModel:
+    def _cfg(self, **kwargs) -> Config:
+        from pathlib import Path
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        base = dict(
+            imap_host="x", imap_port=993, imap_user="u", imap_pass="p",
+            smtp_host="x", smtp_port=465, smtp_user="u", smtp_pass="p",
+            workspace=tmp, ralph_sh=tmp / "ralph.sh",
+        )
+        return Config(**{**base, **kwargs})
+
+    def test_no_hint_no_default(self) -> None:
+        cfg = self._cfg()
+        model, bypass = _resolve_model(None, cfg)
+        assert model is None
+        assert bypass is False
+
+    def test_no_hint_with_default(self) -> None:
+        cfg = self._cfg(ralph_default_model="claude-haiku-4-5-20251001")
+        model, bypass = _resolve_model(None, cfg)
+        assert model == "claude-haiku-4-5-20251001"
+        assert bypass is False
+
+    def test_local_hint_default_model(self) -> None:
+        cfg = self._cfg()
+        model, bypass = _resolve_model("local", cfg)
+        assert model == "qwen3:8b"
+        assert bypass is False
+
+    def test_local_hint_custom_model(self) -> None:
+        cfg = self._cfg(ralph_local_model="qwen3:14b")
+        model, bypass = _resolve_model("local", cfg)
+        assert model == "qwen3:14b"
+        assert bypass is False
+
+    def test_local_explicit_model(self) -> None:
+        cfg = self._cfg()
+        model, bypass = _resolve_model("local:qwen3:32b", cfg)
+        assert model == "qwen3:32b"
+        assert bypass is False
+
+    def test_api_hint_default_model(self) -> None:
+        cfg = self._cfg()
+        model, bypass = _resolve_model("api", cfg)
+        assert model == "claude-sonnet-4-6"
+        assert bypass is True
+
+    def test_api_hint_custom_model(self) -> None:
+        cfg = self._cfg(ralph_api_model="claude-opus-4-8")
+        model, bypass = _resolve_model("api", cfg)
+        assert model == "claude-opus-4-8"
+        assert bypass is True
+
+    def test_api_explicit_model(self) -> None:
+        cfg = self._cfg()
+        model, bypass = _resolve_model("api:claude-opus-4-8", cfg)
+        assert model == "claude-opus-4-8"
+        assert bypass is True
+
+
+# ---------------------------------------------------------------------------
+# _strip_quoted_reply
+# ---------------------------------------------------------------------------
+
+class TestStripQuotedReply:
+    def test_strips_gt_lines(self) -> None:
+        text = "My spec.\n\n> On Mon wrote:\n> prior content"
+        result = _strip_quoted_reply(text)
+        assert "My spec" in result
+        assert "prior content" not in result
+
+    def test_strips_on_wrote_separator(self) -> None:
+        text = "Do the thing.\n\nOn Mon, Jun 17, 2026 at 10:00 AM Alex <a@b.com> wrote:\n> Old content"
+        result = _strip_quoted_reply(text)
+        assert "Do the thing" in result
+        assert "Old content" not in result
+        assert "wrote" not in result
+
+    def test_plain_text_unchanged(self) -> None:
+        text = "# Spec\n\nImplement feature X."
+        assert _strip_quoted_reply(text) == text
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +353,49 @@ class TestDispatchTask:
         summary = await dispatch_task(cfg, "spec", "slow task")
         assert "timed out" in summary
 
+    @pytest.mark.asyncio
+    async def test_local_hint_sets_ralph_model_env(self, tmp_path: Path) -> None:
+        captured_env: dict = {}
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return await original_exec(*args, **kwargs)
+
+        cfg = make_config(tmp_path)
+        with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
+            await dispatch_task(cfg, "spec", "desc", model_hint="local")
+
+        assert captured_env.get("RALPH_MODEL") == "qwen3:8b"
+
+    @pytest.mark.asyncio
+    async def test_api_hint_sets_model_and_removes_base_url(self, tmp_path: Path) -> None:
+        captured_env: dict = {}
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return await original_exec(*args, **kwargs)
+
+        import os
+        env_with_base_url = {**os.environ, "ANTHROPIC_BASE_URL": "http://localhost:4000"}
+        cfg = make_config(tmp_path)
+        with (
+            patch("asyncio.create_subprocess_exec", side_effect=capturing_exec),
+            patch.dict("os.environ", {"ANTHROPIC_BASE_URL": "http://localhost:4000"}),
+        ):
+            await dispatch_task(cfg, "spec", "desc", model_hint="api")
+
+        assert captured_env.get("RALPH_MODEL") == "claude-sonnet-4-6"
+        assert "ANTHROPIC_BASE_URL" not in captured_env
+
+    @pytest.mark.asyncio
+    async def test_reply_includes_model_name(self, tmp_path: Path) -> None:
+        cfg = make_config(tmp_path)
+        summary = await dispatch_task(cfg, "# Spec\n\nDo it.", "desc", model_hint="local")
+        assert "Model:" in summary
+        assert "qwen3:8b" in summary
+
 
 # ---------------------------------------------------------------------------
 # process_message (integration-style with mocks)
@@ -321,6 +483,48 @@ class TestProcessMessage:
         with patch("listener.send_reply", new_callable=AsyncMock) as mock_reply:
             await process_message(cfg, raw)
         mock_reply.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_task_local_passes_hint_to_dispatch(self, tmp_path: Path) -> None:
+        cfg = make_config(tmp_path)
+        raw = make_email("[task:local] fix a bug", "# Spec\n\nFix it.", "user@example.com")
+
+        with (
+            patch("listener.dispatch_task", new_callable=AsyncMock, return_value="done") as mock_dispatch,
+            patch("listener.send_reply", new_callable=AsyncMock),
+        ):
+            await process_message(cfg, raw)
+
+        _, kwargs = mock_dispatch.call_args
+        assert kwargs.get("model_hint") == "local"
+
+    @pytest.mark.asyncio
+    async def test_task_api_passes_hint_to_dispatch(self, tmp_path: Path) -> None:
+        cfg = make_config(tmp_path)
+        raw = make_email("[task:api] design system", "# Spec\n\nArchitect it.", "user@example.com")
+
+        with (
+            patch("listener.dispatch_task", new_callable=AsyncMock, return_value="done") as mock_dispatch,
+            patch("listener.send_reply", new_callable=AsyncMock),
+        ):
+            await process_message(cfg, raw)
+
+        _, kwargs = mock_dispatch.call_args
+        assert kwargs.get("model_hint") == "api"
+
+    @pytest.mark.asyncio
+    async def test_task_no_hint_passes_none(self, tmp_path: Path) -> None:
+        cfg = make_config(tmp_path)
+        raw = make_email("[task] plain task", "# Spec\n\nDo it.", "user@example.com")
+
+        with (
+            patch("listener.dispatch_task", new_callable=AsyncMock, return_value="done") as mock_dispatch,
+            patch("listener.send_reply", new_callable=AsyncMock),
+        ):
+            await process_message(cfg, raw)
+
+        _, kwargs = mock_dispatch.call_args
+        assert kwargs.get("model_hint") is None
 
     @pytest.mark.asyncio
     async def test_task_with_empty_spec_sends_error_reply(self, tmp_path: Path) -> None:
