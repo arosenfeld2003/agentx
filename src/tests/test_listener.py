@@ -164,7 +164,7 @@ class TestResolveModel:
     def test_local_hint_default_model(self) -> None:
         cfg = self._cfg()
         model, bypass = _resolve_model("local", cfg)
-        assert model == "qwen3:8b"
+        assert model == "ollama/qwen3:8b"
         assert bypass is False
 
     def test_local_hint_custom_model(self) -> None:
@@ -366,7 +366,7 @@ class TestDispatchTask:
         with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
             await dispatch_task(cfg, "spec", "desc", model_hint="local")
 
-        assert captured_env.get("RALPH_MODEL") == "qwen3:8b"
+        assert captured_env.get("RALPH_MODEL") == "ollama/qwen3:8b"
 
     @pytest.mark.asyncio
     async def test_api_hint_sets_model_and_removes_base_url(self, tmp_path: Path) -> None:
@@ -394,7 +394,7 @@ class TestDispatchTask:
         cfg = make_config(tmp_path)
         summary = await dispatch_task(cfg, "# Spec\n\nDo it.", "desc", model_hint="local")
         assert "Model:" in summary
-        assert "qwen3:8b" in summary
+        assert "ollama/qwen3:8b" in summary
 
 
 # ---------------------------------------------------------------------------

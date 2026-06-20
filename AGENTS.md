@@ -44,7 +44,7 @@ docker compose -f vps-compose.yml up -d litellm
 curl http://localhost:4000/health
 
 # Run ralph with local model
-RALPH_MODEL=qwen3:8b ./ralph.sh
+RALPH_MODEL=ollama/qwen3:8b ./ralph.sh
 ```
 
 Add to `secrets.env` on VPS before starting LiteLLM:
@@ -62,7 +62,7 @@ Route tasks to different models by using a hint in the email subject:
 | Subject format | Model used | LiteLLM bypassed? |
 |---|---|---|
 | `[task] desc` | `RALPH_DEFAULT_MODEL` or inherited `RALPH_MODEL` | No |
-| `[task:local] desc` | `RALPH_LOCAL_MODEL` (default: `qwen3:8b`) | No |
+| `[task:local] desc` | `RALPH_LOCAL_MODEL` (default: `ollama/qwen3:8b`) | No |
 | `[task:local:qwen3:14b] desc` | `qwen3:14b` | No |
 | `[task:api] desc` | `RALPH_API_MODEL` (default: `claude-sonnet-4-6`) | Yes — `ANTHROPIC_BASE_URL` removed |
 | `[task:api:claude-opus-4-8] desc` | `claude-opus-4-8` | Yes |
@@ -72,7 +72,7 @@ Route tasks to different models by using a hint in the email subject:
 Configure defaults in `secrets.env`:
 ```
 RALPH_DEFAULT_MODEL=   # empty = use whatever RALPH_MODEL is set to in compose
-RALPH_LOCAL_MODEL=     # empty = qwen3:8b
+RALPH_LOCAL_MODEL=     # empty = ollama/qwen3:8b
 RALPH_API_MODEL=       # empty = claude-sonnet-4-6
 ```
 

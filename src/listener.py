@@ -9,7 +9,7 @@ Usage:
 
 Subject prefixes:
     [task] <description>              — run ralph with default model
-    [task:local] <description>        — force local model (RALPH_LOCAL_MODEL, default qwen3:8b)
+    [task:local] <description>        — force local model (RALPH_LOCAL_MODEL, default ollama/qwen3:8b)
     [task:local:qwen3:14b] <desc>     — force specific local model by name
     [task:api] <description>          — force Claude API (bypasses LiteLLM)
     [task:api:claude-opus-4-8] <desc> — force specific Claude API model
@@ -210,7 +210,7 @@ def _resolve_model(hint: str | None, cfg: Config) -> tuple[str | None, bool]:
     if hint.startswith("api:"):
         return hint[4:], True
     if hint == "local":
-        return cfg.ralph_local_model or "qwen3:8b", False
+        return cfg.ralph_local_model or "ollama/qwen3:8b", False
     if hint.startswith("local:"):
         return hint[6:], False
     return hint, False

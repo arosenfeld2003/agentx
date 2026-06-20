@@ -69,6 +69,8 @@ git push runggp --delete ralph/<branch>
 
 The listener runs on the VPS host and polls `agentx@runggp.com` every 30 seconds. Send emails to that address to trigger tasks, check status, or stop the loop.
 
+> **Operational constraint — don't browse the agentx inbox directly.** The listener fetches only `UNSEEN` messages. If you open `agentx@runggp.com` in a mail client, it auto-marks all messages as read and the listener will skip them. If this happens, mark the missed message as unread in your mail client and it will be picked up on the next poll (within 30 seconds).
+
 ### Who can send
 
 By default only `agentx@runggp.com` itself is authorised (for self-sent tasks via `send_task.py`). To send from your personal address, add it to `secrets.env`:
@@ -86,8 +88,8 @@ All commands live in the subject line using `[command]` prefixes:
 | Subject | Effect |
 |---|---|
 | `[task] <description>` | Run ralph with the default model |
-| `[task:local] <description>` | Force local model (`RALPH_LOCAL_MODEL`, default `qwen3:8b`) |
-| `[task:local:qwen3:14b] <description>` | Force a specific local model by name |
+| `[task:local] <description>` | Force local model (`RALPH_LOCAL_MODEL`, default `ollama/qwen3:8b`) |
+| `[task:local:ollama/qwen3:14b] <description>` | Force a specific local model by name |
 | `[task:api] <description>` | Force Claude API, bypassing LiteLLM |
 | `[task:api:claude-opus-4-8] <description>` | Force a specific Claude API model |
 | `[status]` | Reply with loop state and recent commits |
