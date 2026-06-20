@@ -331,14 +331,44 @@ class TestDispatchTask:
         assert "exited with code 1" in summary
 
     @pytest.mark.asyncio
-    async def test_writes_to_implementation_plan(self, tmp_path: Path) -> None:
+    async def test_does_not_modify_implementation_plan(self, tmp_path: Path) -> None:
         cfg = make_config(tmp_path)
         plan = tmp_path / "IMPLEMENTATION_PLAN.md"
-        plan.write_text("# Implementation Plan\n\n## Current Focus\n\nexisting task\n")
+        original = "# Implementation Plan\n\n## Current Focus\n\nexisting task\n"
+        plan.write_text(original)
         await dispatch_task(cfg, "# Spec\n\nDo it.", "email task desc")
-        content = plan.read_text()
-        assert "email task desc" in content
-        assert "existing task" in content
+        assert plan.read_text() == original
+
+    @pytest.mark.asyncio
+    async def test_invokes_ralph_in_task_mode(self, tmp_path: Path) -> None:
+        captured_args: list = []
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_args.extend(args)
+            return await original_exec(*args, **kwargs)
+
+        cfg = make_config(tmp_path)
+        with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
+            await dispatch_task(cfg, "# Spec\n\nDo it.", "desc")
+
+        assert "task" in captured_args
+        assert str(tmp_path / "TASK.md") in captured_args
+
+    @pytest.mark.asyncio
+    async def test_sets_ralph_max_iterations_env(self, tmp_path: Path) -> None:
+        captured_env: dict = {}
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return await original_exec(*args, **kwargs)
+
+        cfg = make_config(tmp_path)
+        with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
+            await dispatch_task(cfg, "spec", "desc")
+
+        assert captured_env.get("RALPH_MAX_ITERATIONS") == str(cfg.ralph_iterations)
 
     @pytest.mark.asyncio
     async def test_timeout_kills_process_and_returns_message(self, tmp_path: Path) -> None:

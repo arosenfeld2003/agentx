@@ -60,6 +60,7 @@ class Config:
     ralph_default_model: str = ""
     ralph_local_model: str = ""
     ralph_api_model: str = ""
+    ralph_iterations: int = 2
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -96,6 +97,7 @@ class Config:
             ralph_default_model=os.environ.get("RALPH_DEFAULT_MODEL", ""),
             ralph_local_model=os.environ.get("RALPH_LOCAL_MODEL", ""),
             ralph_api_model=os.environ.get("RALPH_API_MODEL", ""),
+            ralph_iterations=int(os.environ.get("AGENTX_RALPH_ITERATIONS", "2")),
         )
 
 
@@ -223,8 +225,11 @@ def _resolve_model(hint: str | None, cfg: Config) -> tuple[str | None, bool]:
 async def dispatch_task(cfg: Config, spec: str, description: str, model_hint: str | None = None) -> str:
     """Write spec into IMPLEMENTATION_PLAN.md and run ralph.sh.
 
-    The spec is prepended as a new task so ralph's normal plan-reading
-    flow picks it up on the next iteration.
+    Write spec to TASK.md and run ralph in task mode.
+
+    Uses `ralph.sh task TASK.md` so ralph focuses only on the email spec
+    without reading the full IMPLEMENTATION_PLAN.md as context. IMPLEMENTATION_PLAN.md
+    is left untouched.
 
     Returns a human-readable work summary string.
     """
@@ -232,36 +237,20 @@ async def dispatch_task(cfg: Config, spec: str, description: str, model_hint: st
     task_file.write_text(spec, encoding="utf-8")
     log.info("Wrote task to %s", task_file)
 
-    plan_file = cfg.workspace / "IMPLEMENTATION_PLAN.md"
-    task_block = f"- [ ] **Email task:** {description}\n\n{spec}\n\n"
-    if plan_file.exists():
-        existing = plan_file.read_text(encoding="utf-8")
-        # Insert after the "## Current Focus" heading
-        marker = "## Current Focus"
-        if marker in existing:
-            plan_file.write_text(
-                existing.replace(marker, f"{marker}\n\n{task_block}", 1),
-                encoding="utf-8",
-            )
-        else:
-            plan_file.write_text(task_block + existing, encoding="utf-8")
-    else:
-        plan_file.write_text(
-            f"# Implementation Plan\n\n## Current Focus\n\n{task_block}",
-            encoding="utf-8",
-        )
-    log.info("Wrote task to %s", plan_file)
-
     env = {**os.environ, "WORKSPACE_PATH": str(cfg.workspace)}
     model_name, bypass_litellm = _resolve_model(model_hint, cfg)
     if model_name:
         env["RALPH_MODEL"] = model_name
     if bypass_litellm:
         env.pop("ANTHROPIC_BASE_URL", None)
-    log.info("Launching ralph.sh at %s (model=%s bypass_litellm=%s)", cfg.ralph_sh, model_name, bypass_litellm)
+    env["RALPH_MAX_ITERATIONS"] = str(cfg.ralph_iterations)
+    log.info(
+        "Launching ralph.sh task at %s (model=%s bypass_litellm=%s iterations=%d)",
+        cfg.ralph_sh, model_name, bypass_litellm, cfg.ralph_iterations,
+    )
 
     proc = await asyncio.create_subprocess_exec(
-        str(cfg.ralph_sh),
+        str(cfg.ralph_sh), "task", str(task_file),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
