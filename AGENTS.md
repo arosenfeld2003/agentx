@@ -76,6 +76,32 @@ RALPH_LOCAL_MODEL=     # empty = ollama/qwen3:8b
 RALPH_API_MODEL=       # empty = claude-sonnet-4-6
 ```
 
+### Project Workspaces
+
+Each email task runs in an isolated workspace. The workspace is determined by optional YAML frontmatter in the email body:
+
+| `project:` value | Workspace |
+|---|---|
+| `my-service` (any name) | `/opt/projects/my-service/` — created on first use, reused after |
+| `agentx` | `/opt/agentx/` — agentx itself (use sparingly) |
+| omitted or `_ephemeral` | `/opt/projects/.inbox/<yyyymmdd-hhmmss>/` — one-off, disposable |
+
+Project directories are bind-mounted into Docker (`/opt/projects` → `/opt/projects`). Ralph initializes git, creates files, and commits — all within the project directory. The `AGENTX_PROJECTS_ROOT` env var controls the root (default `/opt/projects`).
+
+### External Tools
+
+Ralph has access to the following tools out of the box:
+
+| Tool | How it works |
+|---|---|
+| `gh` CLI | Pre-installed in Docker; set `GH_TOKEN` (via `GITHUB_PERSONAL_ACCESS_TOKEN` in secrets.env) for automatic auth. Use for: create repos, open PRs, manage issues, clone private repos. |
+| `curl` | Available for HTTP API calls to any external service. |
+| `uv` / Python | Pre-installed; use `uv run` to execute scripts or `uv add` to install packages per project. |
+| `WebFetch` / `WebSearch` | Built into Claude Code — ralph can browse the web and fetch URLs without any MCP config. |
+| Internet access | `network_mode: host` — ralph can reach any internet endpoint from inside Docker. |
+
+To add MCP servers (e.g. a Postgres MCP, a Slack MCP), drop config into `/opt/agentx/.agent-claude/`. Claude Code picks it up automatically on next start.
+
 ### Codebase Patterns
 
 _Document patterns as they emerge._

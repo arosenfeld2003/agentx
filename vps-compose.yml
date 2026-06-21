@@ -8,6 +8,7 @@ services:
     env_file: ${WORKSPACE_PATH:-/opt/agentx}/secrets.env
     environment:
       WORKSPACE_PATH: /home/ralph/workspace
+      AGENTX_PROJECTS_ROOT: ${AGENTX_PROJECTS_ROOT:-/opt/projects}
       RALPH_MAX_ITERATIONS: ${RALPH_MAX_ITERATIONS:-5}
       RALPH_MODE: ${RALPH_MODE:-build}
       RALPH_MODEL: ${RALPH_MODEL:-claude-sonnet-4-6}
@@ -27,6 +28,7 @@ services:
       - ${SCAFFOLD:-/opt/agentx/scaffold}/lib:/home/ralph/workspace/lib:ro
       - ${WORKSPACE_PATH:-/opt/agentx}/.agent-claude:/home/ralph/.claude
       - ${WORKSPACE_PATH:-/opt/agentx}/.agent-ssh:/home/ralph/.ssh:ro  # must be chowned to uid 1001 (ralph)
+      - ${AGENTX_PROJECTS_ROOT:-/opt/projects}:/opt/projects
     network_mode: host
     restart: "no"
     logging:
