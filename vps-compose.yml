@@ -16,7 +16,7 @@ services:
       RALPH_CLEANUP_SCAFFOLDING: "false"
       RALPH_ENTIRE_ENABLED: "true"
       RALPH_ENTIRE_STRATEGY: "manual-commit"
-      RALPH_ENTIRE_PUSH_SESSIONS: "true"
+      RALPH_ENTIRE_PUSH_SESSIONS: ${RALPH_ENTIRE_PUSH_SESSIONS:-true}
       RALPH_ENTIRE_LOG_LEVEL: "warn"
       OLLAMA_HOST: http://localhost:11434
       GIT_SSH_COMMAND: ssh -i /home/ralph/.ssh/hostinger -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
@@ -26,8 +26,8 @@ services:
     volumes:
       - ${WORKSPACE_PATH:-/opt/agentx}:/home/ralph/workspace
       - ${SCAFFOLD:-/opt/agentx/scaffold}/lib:/home/ralph/workspace/lib:ro
-      - ${WORKSPACE_PATH:-/opt/agentx}/.agent-claude:/home/ralph/.claude
-      - ${WORKSPACE_PATH:-/opt/agentx}/.agent-ssh:/home/ralph/.ssh:ro  # must be chowned to uid 1001 (ralph)
+      - ${AGENTX_HOME:-/opt/agentx}/.agent-claude:/home/ralph/.claude
+      - ${AGENTX_HOME:-/opt/agentx}/.agent-ssh:/home/ralph/.ssh:ro  # must be chowned to uid 1001 (ralph)
       - ${AGENTX_PROJECTS_ROOT:-/opt/projects}:/opt/projects
     network_mode: host
     restart: "no"
