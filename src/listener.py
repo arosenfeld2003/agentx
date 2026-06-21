@@ -29,6 +29,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -61,6 +62,7 @@ class Config:
     ralph_local_model: str = ""
     ralph_api_model: str = ""
     ralph_iterations: int = 2
+    projects_root: Path = Path("/opt/projects")
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -98,6 +100,7 @@ class Config:
             ralph_local_model=os.environ.get("RALPH_LOCAL_MODEL", ""),
             ralph_api_model=os.environ.get("RALPH_API_MODEL", ""),
             ralph_iterations=int(os.environ.get("AGENTX_RALPH_ITERATIONS", "2")),
+            projects_root=Path(os.environ.get("AGENTX_PROJECTS_ROOT", "/opt/projects")),
         )
 
 
@@ -218,26 +221,62 @@ def _resolve_model(hint: str | None, cfg: Config) -> tuple[str | None, bool]:
     return hint, False
 
 
+def _parse_frontmatter(spec: str) -> tuple[dict[str, str], str]:
+    """Parse optional YAML-style frontmatter from a spec string.
+
+    Returns (fields, body) where fields is a dict of key: value pairs
+    and body is the spec with frontmatter stripped.
+
+    Example input:
+        ---
+        project: my-service
+        ---
+        # Task body
+    """
+    m = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)", spec.strip(), re.DOTALL)
+    if not m:
+        return {}, spec.strip()
+    raw, body = m.group(1), m.group(2).strip()
+    fields: dict[str, str] = {}
+    for line in raw.splitlines():
+        if ":" in line:
+            k, _, v = line.partition(":")
+            fields[k.strip()] = v.strip()
+    return fields, body
+
+
 # ---------------------------------------------------------------------------
 # Actions
 # ---------------------------------------------------------------------------
 
 async def dispatch_task(cfg: Config, spec: str, description: str, model_hint: str | None = None) -> str:
-    """Write spec into IMPLEMENTATION_PLAN.md and run ralph.sh.
+    """Write spec to TASK.md and run ralph in task mode.
 
-    Write spec to TASK.md and run ralph in task mode.
-
-    Uses `ralph.sh task TASK.md` so ralph focuses only on the email spec
-    without reading the full IMPLEMENTATION_PLAN.md as context. IMPLEMENTATION_PLAN.md
-    is left untouched.
+    Parses optional YAML frontmatter from the spec to determine the workspace:
+    - `project: agentx`        → cfg.workspace (/opt/agentx)
+    - `project: <name>`        → cfg.projects_root/<name>/
+    - no frontmatter / `_ephemeral` → cfg.projects_root/.inbox/<timestamp>/
 
     Returns a human-readable work summary string.
     """
-    task_file = cfg.workspace / "TASK.md"
-    task_file.write_text(spec, encoding="utf-8")
-    log.info("Wrote task to %s", task_file)
+    fields, task_body = _parse_frontmatter(spec)
+    project = fields.get("project", "")
 
-    env = {**os.environ, "WORKSPACE_PATH": str(cfg.workspace)}
+    if project == "agentx":
+        workspace = cfg.workspace
+    elif project and project != "_ephemeral":
+        workspace = cfg.projects_root / project
+    else:
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        workspace = cfg.projects_root / ".inbox" / ts
+
+    workspace.mkdir(parents=True, exist_ok=True)
+
+    task_file = workspace / "TASK.md"
+    task_file.write_text(task_body, encoding="utf-8")
+    log.info("Wrote task to %s (project=%r)", task_file, project or "_ephemeral")
+
+    env = {**os.environ, "WORKSPACE_PATH": str(workspace)}
     model_name, bypass_litellm = _resolve_model(model_hint, cfg)
     if model_name:
         env["RALPH_MODEL"] = model_name
@@ -254,7 +293,7 @@ async def dispatch_task(cfg: Config, spec: str, description: str, model_hint: st
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
-        cwd=str(cfg.workspace),
+        cwd=str(workspace),
     )
     communicate_task = asyncio.create_task(proc.communicate())
     done, _ = await asyncio.wait([communicate_task], timeout=cfg.ralph_timeout)

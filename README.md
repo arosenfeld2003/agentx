@@ -115,6 +115,29 @@ Add per-IP rate limiting to the proxy. Use a token bucket algorithm.
 
 You can also attach a `.md` file instead of writing in the body — the attachment takes priority.
 
+### Targeting a project workspace
+
+By default tasks run in a timestamped throwaway directory under `/opt/projects/.inbox/`. To route the task to a named project, add a YAML frontmatter header before the spec:
+
+```
+Subject: [task] add rate limiting
+
+---
+project: my-api
+---
+
+# Rate Limiting
+...
+```
+
+| `project:` value | Workspace used |
+|---|---|
+| `my-api` (any name) | `/opt/projects/my-api/` — created on first use, reused after |
+| `agentx` | `/opt/agentx/` — agentx itself; use only for agentx self-maintenance |
+| omitted or `_ephemeral` | `/opt/projects/.inbox/<timestamp>/` — one-off, disposable |
+
+Ralph initializes git and commits inside the project directory. To give ralph access to an existing repo, include a `git clone` instruction in the task body and reference the project name so subsequent tasks land in the same directory.
+
 ### Send a task from the VPS (programmatic)
 
 ```bash

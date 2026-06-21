@@ -13,6 +13,7 @@ import pytest
 
 from listener import (
     Config,
+    _parse_frontmatter,
     _resolve_model,
     _strip_quoted_reply,
     dispatch_task,
@@ -45,6 +46,28 @@ def make_config(tmp_path: Path) -> Config:
         workspace=tmp_path,
         ralph_sh=ralph_sh,
         poll_interval=5,
+        projects_root=tmp_path / "projects",
+    )
+
+
+def make_config_with_projects(tmp_path: Path, projects_root: Path) -> Config:
+    ralph_sh = tmp_path / "ralph.sh"
+    ralph_sh.write_text("#!/bin/bash\necho done\n")
+    ralph_sh.chmod(0o755)
+
+    return Config(
+        imap_host="imap.example.com",
+        imap_port=993,
+        imap_user="agent@example.com",
+        imap_pass="secret",
+        smtp_host="smtp.example.com",
+        smtp_port=465,
+        smtp_user="agent@example.com",
+        smtp_pass="secret",
+        workspace=tmp_path,
+        ralph_sh=ralph_sh,
+        poll_interval=5,
+        projects_root=projects_root,
     )
 
 
@@ -199,6 +222,42 @@ class TestResolveModel:
 
 
 # ---------------------------------------------------------------------------
+# _parse_frontmatter
+# ---------------------------------------------------------------------------
+
+class TestParseFrontmatter:
+    def test_no_frontmatter_returns_empty_fields(self) -> None:
+        spec = "# Task\n\nDo the thing."
+        fields, body = _parse_frontmatter(spec)
+        assert fields == {}
+        assert body == spec
+
+    def test_parses_project_field(self) -> None:
+        spec = "---\nproject: my-service\n---\n\n# Task\n\nDo the thing."
+        fields, body = _parse_frontmatter(spec)
+        assert fields == {"project": "my-service"}
+        assert body == "# Task\n\nDo the thing."
+
+    def test_parses_multiple_fields(self) -> None:
+        spec = "---\nproject: api\nenv: staging\n---\n# Spec"
+        fields, body = _parse_frontmatter(spec)
+        assert fields["project"] == "api"
+        assert fields["env"] == "staging"
+        assert body == "# Spec"
+
+    def test_strips_frontmatter_whitespace(self) -> None:
+        spec = "---\n  project:  my-svc  \n---\n# Body"
+        fields, body = _parse_frontmatter(spec)
+        assert fields["project"] == "my-svc"
+
+    def test_empty_frontmatter_returns_empty_fields(self) -> None:
+        spec = "---\n\n---\n# Body"
+        fields, body = _parse_frontmatter(spec)
+        assert fields == {}
+        assert body == "# Body"
+
+
+# ---------------------------------------------------------------------------
 # _strip_quoted_reply
 # ---------------------------------------------------------------------------
 
@@ -304,7 +363,9 @@ class TestDispatchTask:
         spec = "# Deploy\n\nRun the thing."
         summary = await dispatch_task(cfg, spec, "deploy the thing")
 
-        task_file = tmp_path / "TASK.md"
+        inbox_dirs = list((tmp_path / "projects" / ".inbox").iterdir())
+        assert len(inbox_dirs) == 1
+        task_file = inbox_dirs[0] / "TASK.md"
         assert task_file.exists()
         assert "Deploy" in task_file.read_text()
         assert "deploy the thing" in summary
@@ -326,6 +387,7 @@ class TestDispatchTask:
             smtp_pass="p",
             workspace=tmp_path,
             ralph_sh=ralph_sh,
+            projects_root=tmp_path / "projects",
         )
         summary = await dispatch_task(cfg, "spec", "desc")
         assert "exited with code 1" in summary
@@ -353,7 +415,7 @@ class TestDispatchTask:
             await dispatch_task(cfg, "# Spec\n\nDo it.", "desc")
 
         assert "task" in captured_args
-        assert str(tmp_path / "TASK.md") in captured_args
+        assert any("TASK.md" in arg for arg in captured_args)
 
     @pytest.mark.asyncio
     async def test_sets_ralph_max_iterations_env(self, tmp_path: Path) -> None:
@@ -379,6 +441,7 @@ class TestDispatchTask:
             imap_host="x", imap_port=993, imap_user="u", imap_pass="p",
             smtp_host="x", smtp_port=465, smtp_user="u", smtp_pass="p",
             workspace=tmp_path, ralph_sh=ralph_sh, ralph_timeout=1,
+            projects_root=tmp_path / "projects",
         )
         summary = await dispatch_task(cfg, "spec", "slow task")
         assert "timed out" in summary
@@ -425,6 +488,52 @@ class TestDispatchTask:
         summary = await dispatch_task(cfg, "# Spec\n\nDo it.", "desc", model_hint="local")
         assert "Model:" in summary
         assert "ollama/qwen3:8b" in summary
+
+    @pytest.mark.asyncio
+    async def test_no_frontmatter_uses_inbox_workspace(self, tmp_path: Path) -> None:
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        await dispatch_task(cfg, "# Spec\n\nDo it.", "desc")
+        inbox_dirs = list((projects_root / ".inbox").iterdir())
+        assert len(inbox_dirs) == 1
+        assert (inbox_dirs[0] / "TASK.md").exists()
+
+    @pytest.mark.asyncio
+    async def test_named_project_uses_projects_root(self, tmp_path: Path) -> None:
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        spec = "---\nproject: my-api\n---\n\n# Task\n\nDo it."
+        await dispatch_task(cfg, spec, "desc")
+        assert (projects_root / "my-api" / "TASK.md").exists()
+
+    @pytest.mark.asyncio
+    async def test_task_body_stripped_of_frontmatter(self, tmp_path: Path) -> None:
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        spec = "---\nproject: my-api\n---\n\n# Task\n\nDo it."
+        await dispatch_task(cfg, spec, "desc")
+        task_md = (projects_root / "my-api" / "TASK.md").read_text()
+        assert "---" not in task_md
+        assert "project:" not in task_md
+        assert "# Task" in task_md
+
+    @pytest.mark.asyncio
+    async def test_agentx_project_uses_cfg_workspace(self, tmp_path: Path) -> None:
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        spec = "---\nproject: agentx\n---\n\n# Task\n\nDo it."
+        await dispatch_task(cfg, spec, "desc")
+        assert (tmp_path / "TASK.md").exists()
+        assert not projects_root.exists()
+
+    @pytest.mark.asyncio
+    async def test_ephemeral_project_uses_inbox(self, tmp_path: Path) -> None:
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        spec = "---\nproject: _ephemeral\n---\n\n# Task\n\nDo it."
+        await dispatch_task(cfg, spec, "desc")
+        inbox_dirs = list((projects_root / ".inbox").iterdir())
+        assert len(inbox_dirs) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -608,3 +717,23 @@ class TestConfigFromEnv:
         monkeypatch.setenv("AGENTX_ALLOWED_SENDERS", "a@example.com, B@EXAMPLE.COM")
         cfg = Config.from_env()
         assert cfg.allowed_senders == frozenset(["a@example.com", "b@example.com", "u@example.com"])
+
+    def test_projects_root_from_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setenv("IMAP_USER", "u@example.com")
+        monkeypatch.setenv("IMAP_PASS", "pass1")
+        monkeypatch.setenv("SMTP_USER", "u@example.com")
+        monkeypatch.setenv("SMTP_PASS", "pass2")
+        monkeypatch.setenv("WORKSPACE_PATH", str(tmp_path))
+        monkeypatch.setenv("AGENTX_PROJECTS_ROOT", "/custom/projects")
+        cfg = Config.from_env()
+        assert cfg.projects_root == Path("/custom/projects")
+
+    def test_projects_root_default(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setenv("IMAP_USER", "u@example.com")
+        monkeypatch.setenv("IMAP_PASS", "pass1")
+        monkeypatch.setenv("SMTP_USER", "u@example.com")
+        monkeypatch.setenv("SMTP_PASS", "pass2")
+        monkeypatch.setenv("WORKSPACE_PATH", str(tmp_path))
+        monkeypatch.delenv("AGENTX_PROJECTS_ROOT", raising=False)
+        cfg = Config.from_env()
+        assert cfg.projects_root == Path("/opt/projects")
