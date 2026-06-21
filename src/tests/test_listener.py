@@ -535,6 +535,59 @@ class TestDispatchTask:
         inbox_dirs = list((projects_root / ".inbox").iterdir())
         assert len(inbox_dirs) == 1
 
+    @pytest.mark.asyncio
+    async def test_agentx_home_always_points_to_cfg_workspace(self, tmp_path: Path) -> None:
+        """AGENTX_HOME must always point to the main agentx workspace so that
+        .agent-claude and .agent-ssh are mounted from the right place in docker."""
+        captured_env: dict = {}
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return await original_exec(*args, **kwargs)
+
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
+            await dispatch_task(cfg, "# Spec\n\nDo it.", "desc")
+
+        assert captured_env.get("AGENTX_HOME") == str(tmp_path)
+        # WORKSPACE_PATH should be the inbox dir, not the main workspace
+        assert captured_env.get("WORKSPACE_PATH") != str(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_inbox_task_disables_entire_push_sessions(self, tmp_path: Path) -> None:
+        captured_env: dict = {}
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return await original_exec(*args, **kwargs)
+
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
+            await dispatch_task(cfg, "# Spec\n\nDo it.", "desc")
+
+        assert captured_env.get("RALPH_ENTIRE_PUSH_SESSIONS") == "false"
+
+    @pytest.mark.asyncio
+    async def test_agentx_project_does_not_disable_entire_push_sessions(self, tmp_path: Path) -> None:
+        captured_env: dict = {}
+        original_exec = __import__("asyncio").create_subprocess_exec
+
+        async def capturing_exec(*args, **kwargs):
+            captured_env.update(kwargs.get("env", {}))
+            return await original_exec(*args, **kwargs)
+
+        projects_root = tmp_path / "projects"
+        cfg = make_config_with_projects(tmp_path, projects_root)
+        spec = "---\nproject: agentx\n---\n\n# Task\n\nDo it."
+        with patch("asyncio.create_subprocess_exec", side_effect=capturing_exec):
+            await dispatch_task(cfg, spec, "desc")
+
+        assert "RALPH_ENTIRE_PUSH_SESSIONS" not in captured_env
+
 
 # ---------------------------------------------------------------------------
 # process_message (integration-style with mocks)

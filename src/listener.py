@@ -276,7 +276,13 @@ async def dispatch_task(cfg: Config, spec: str, description: str, model_hint: st
     task_file.write_text(task_body, encoding="utf-8")
     log.info("Wrote task to %s (project=%r)", task_file, project or "_ephemeral")
 
-    env = {**os.environ, "WORKSPACE_PATH": str(workspace)}
+    agentx_home = str(cfg.workspace)
+    is_agentx = project == "agentx"
+
+    env = {**os.environ, "WORKSPACE_PATH": str(workspace), "AGENTX_HOME": agentx_home}
+    if not is_agentx:
+        # Non-agentx workspaces have no git remote; suppress session-branch push.
+        env["RALPH_ENTIRE_PUSH_SESSIONS"] = "false"
     model_name, bypass_litellm = _resolve_model(model_hint, cfg)
     if model_name:
         env["RALPH_MODEL"] = model_name
